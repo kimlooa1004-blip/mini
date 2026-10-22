@@ -48,27 +48,32 @@ class Recognition:
     attempts: list = field(default_factory=list)
 
 
-def get_api_key(secrets=None):
+ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
+
+
+def read_setting(name, secrets=None):
     """Env var first, then a secrets mapping (Streamlit Cloud), then repo .env."""
-    key = os.environ.get("OPENROUTER_API_KEY")
-    if not key and secrets is not None:
+    value = os.environ.get(name)
+    if not value and secrets is not None:
         try:
-            key = secrets.get("OPENROUTER_API_KEY")
+            value = secrets.get(name)
         except Exception:
-            key = None
-    if not key:
-        env = Path(__file__).resolve().parent.parent / ".env"
-        if env.is_file():
-            for line in env.read_text(encoding="utf-8-sig").splitlines():
-                name, _, value = line.partition("=")
-                if name.strip() == "OPENROUTER_API_KEY":
-                    key = value.strip().strip("\"'")
-    return key or None
+            value = None
+    if not value and ENV_FILE.is_file():
+        for line in ENV_FILE.read_text(encoding="utf-8-sig").splitlines():
+            key, _, raw = line.partition("=")
+            if key.strip() == name:
+                value = raw.strip().strip("\"'")
+    return value or None
 
 
-def get_models():
-    primary = os.environ.get("OPENROUTER_IMAGE_MODEL", DEFAULT_MODEL)
-    raw = os.environ.get("OPENROUTER_FALLBACK_MODELS", DEFAULT_FALLBACKS)
+def get_api_key(secrets=None):
+    return read_setting("OPENROUTER_API_KEY", secrets)
+
+
+def get_models(secrets=None):
+    primary = read_setting("OPENROUTER_IMAGE_MODEL", secrets) or DEFAULT_MODEL
+    raw = read_setting("OPENROUTER_FALLBACK_MODELS", secrets) or DEFAULT_FALLBACKS
     fallbacks = [m.strip() for m in raw.split(",") if m.strip() and m.strip() != primary]
     return primary, fallbacks
 

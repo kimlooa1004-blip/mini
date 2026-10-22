@@ -125,5 +125,24 @@ class KeyTest(unittest.TestCase):
             self.assertEqual(vision.get_api_key({"OPENROUTER_API_KEY": "s"}), "s")
 
 
+class SettingsTest(unittest.TestCase):
+    def test_models_read_from_dotenv(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            env = Path(d) / ".env"
+            env.write_text("OPENROUTER_IMAGE_MODEL=a/b:free\n"
+                           "OPENROUTER_FALLBACK_MODELS=c/d:free, e/f:free, a/b:free\n")
+            with mock.patch.dict(os.environ, {}, clear=True), \
+                 mock.patch.object(vision, "ENV_FILE", env):
+                self.assertEqual(vision.get_models(), ("a/b:free", ["c/d:free", "e/f:free"]))
+
+    def test_defaults_when_unset(self):
+        with mock.patch.dict(os.environ, {}, clear=True), \
+             mock.patch.object(vision, "ENV_FILE", Path("/nonexistent/.env")):
+            primary, fallbacks = vision.get_models()
+            self.assertEqual(primary, vision.DEFAULT_MODEL)
+            self.assertTrue(fallbacks)
+
+
 if __name__ == "__main__":
     unittest.main()
