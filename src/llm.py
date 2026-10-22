@@ -24,6 +24,14 @@ class ApiError(Exception):
     def __init__(self, status, message=""):
         super().__init__(f"HTTP {status}: {message}")
         self.status = status
+        self.detail = message
+
+
+def describe(e):
+    """Short label for the attempts log. Network-level failures (status 0) carry the exception type."""
+    if e.status in (0, 200) and e.detail:
+        return f"HTTP {e.status} ({e.detail})"
+    return f"HTTP {e.status}"
 
 
 def read_setting(name, secrets=None):
@@ -43,7 +51,13 @@ def read_setting(name, secrets=None):
 
 
 def get_api_key(secrets=None):
-    return read_setting("OPENROUTER_API_KEY", secrets)
+    key = read_setting("OPENROUTER_API_KEY", secrets)
+    return key.strip().strip("\"'").strip() if key else None
+
+
+def key_is_header_safe(key):
+    """HTTP headers only take printable ASCII; a stray newline or Korean character breaks the call."""
+    return bool(key) and key.isascii() and key.isprintable()
 
 
 def parse_model_list(raw, exclude=()):
@@ -53,6 +67,8 @@ def parse_model_list(raw, exclude=()):
 
 def chat(model, messages, key, max_tokens=1500, timeout=120, opener=urllib.request.urlopen):
     """Call the model once and return the reply text. Raises ApiError on any failure."""
+    if not key_is_header_safe(key):
+        raise ApiError(401, "API 키에 공백·줄바꿈·한글 등 사용할 수 없는 문자가 있습니다")
     base = (read_setting("OPENROUTER_BASE_URL") or DEFAULT_BASE_URL).rstrip("/")
     body = json.dumps({"model": model, "max_tokens": max_tokens, "messages": messages}).encode()
     req = urllib.request.Request(base + "/chat/completions", body, {
@@ -101,7 +117,7 @@ def call_with_fallback(primary, fallbacks, attempt, sleep=time.sleep):
         try:
             result = attempt(model)
         except ApiError as e:
-            attempts.append(f"{model}: HTTP {e.status}")
+            attempts.append(f"{model}: {describe(e)}")
             if e.status in (401, 403):
                 raise LLMError(
                     "API 키가 거부되었습니다. .env의 키와 OpenRouter 키 상태를 확인해 주세요.",

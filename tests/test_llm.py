@@ -46,6 +46,35 @@ class ChatTest(unittest.TestCase):
         self.assertEqual(seen["auth"], "Bearer sekret")
 
 
+class KeyFormatTest(unittest.TestCase):
+    def test_stray_whitespace_and_quotes_are_stripped(self):
+        with mock.patch.dict("os.environ", {"OPENROUTER_API_KEY": ' "sk-or-abc"\n'}):
+            self.assertEqual(llm.get_api_key(), "sk-or-abc")
+
+    def test_unsafe_key_is_rejected_before_any_request(self):
+        def never(req, timeout):
+            raise AssertionError("request was sent")
+        for bad in ("sk-or-a\nb", "sk-or-키", "", None):
+            with self.assertRaises(llm.ApiError) as cm:
+                llm.chat("m", [], bad, opener=never)
+            self.assertEqual(cm.exception.status, 401)
+
+    def test_network_failure_is_labelled_with_exception_type_only(self):
+        def boom(req, timeout):
+            raise urllib.error.URLError("secret-host-detail")
+        with self.assertRaises(llm.ApiError) as cm:
+            llm.chat("m", [], "k", opener=boom)
+        self.assertEqual(llm.describe(cm.exception), "HTTP 0 (URLError)")
+        self.assertNotIn("secret", llm.describe(cm.exception))
+
+    def test_attempts_log_shows_failure_kind(self):
+        def attempt(model):
+            raise llm.ApiError(0, "TimeoutError")
+        with self.assertRaises(llm.LLMError) as cm:
+            llm.call_with_fallback("A", [], attempt, lambda s: None)
+        self.assertEqual(cm.exception.attempts[0], "A: HTTP 0 (TimeoutError)")
+
+
 class JsonTest(unittest.TestCase):
     def test_fenced(self):
         self.assertEqual(llm.parse_json_object('```json\n{"a": 1}\n```'), {"a": 1})
