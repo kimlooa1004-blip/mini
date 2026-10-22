@@ -49,7 +49,7 @@ def red_square_png(size=64):
 
 
 def ask(key, model, content):
-    body = json.dumps({"model": model, "max_tokens": 200,
+    body = json.dumps({"model": model, "max_tokens": 1500,
                        "messages": [{"role": "user", "content": content}]}).encode()
     req = urllib.request.Request(URL, body, {
         "Authorization": f"Bearer {key}", "Content-Type": "application/json"})
