@@ -14,15 +14,19 @@ VisionError = LLMError  # kept for callers written before llm.py existed
 DEFAULT_MODEL = "nvidia/nemotron-3.5-super-vl:free"
 # Other providers than the primary, so one provider's rate limit doesn't sink all.
 DEFAULT_FALLBACKS = "minimax/minimax-m3.1-flash:free,google/gemma-4-31b-it:free"
-MAX_SIDE = 1024
+MAX_SIDE = 1536  # small items on fridge shelves blur away at 1024
 MAX_UPLOAD_BYTES = 5 * 1024 * 1024
 MAX_INGREDIENTS = 50
 MAX_NAME_LEN = 50
 
 PROMPT = (
-    "이 냉장고 사진에서 실제로 눈에 보이는 식재료만 한국어 일반명으로 찾아 JSON만 출력해. "
-    "음식이 아닌 물건, 그릇, 용기, 상표명은 넣지 마. 확실하지 않으면 넣지 마. "
-    '형식: {"ingredients":[{"name":"..."}]}. 식재료가 없으면 빈 배열.'
+    "너는 냉장고 사진을 보고 식재료를 빠짐없이 찾아내는 도우미야. "
+    "사진을 선반(칸)별로, 왼쪽에서 오른쪽으로 하나씩 훑어보고, 눈에 보이는 식재료를 모두 찾아. "
+    "채소, 과일, 계란, 유제품(우유·치즈·요거트), 고기·생선, 소스·병조림, 음료까지 포함해. "
+    "같은 재료가 여러 개여도 이름은 한 번만 적고, 한국어 일반명으로 써. "
+    "그릇·용기·냉장고 부품은 제외하고, 사진에 실제로 보이지 않는 재료는 지어내지 마. "
+    "형식은 JSON만: "
+    '{"ingredients":[{"name":"..."}]}. 식재료가 전혀 없으면 빈 배열.'
 )
 
 
@@ -52,7 +56,7 @@ def resize_image(data, max_side=MAX_SIDE):
         raise LLMError("이미지를 읽을 수 없습니다. JPG/PNG/WebP 사진인지 확인해 주세요.") from e
     img.thumbnail((max_side, max_side))
     out = io.BytesIO()
-    img.save(out, "JPEG", quality=85)
+    img.save(out, "JPEG", quality=90)
     return out.getvalue()
 
 

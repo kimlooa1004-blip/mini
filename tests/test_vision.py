@@ -15,7 +15,7 @@ OK = json.dumps({"ingredients": [{"name": "계란"}, {"name": "우유"}]})
 class ResizeTest(unittest.TestCase):
     def test_long_side_capped(self):
         out = Image.open(io.BytesIO(vision.resize_image(helpers.png((3000, 2000)))))
-        self.assertEqual(max(out.size), 1024)
+        self.assertEqual(max(out.size), vision.MAX_SIDE)
         self.assertEqual(out.format, "JPEG")
 
     def test_garbage_rejected(self):
