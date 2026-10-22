@@ -4,6 +4,7 @@
 !.env.example
 *.pem
 *.key
+.streamlit/secrets.toml
 
 # macOS
 .DS_Store
