@@ -42,8 +42,11 @@ upload = st.file_uploader("냉장고 사진을 업로드하세요 (JPG/PNG/WebP,
 
 def start_list(names, model, attempts):
     state["result"] = vision.Recognition(names, model, attempts)
-    state["ing_df"] = pd.DataFrame({"식재료": names, "수량": [1.0] * len(names),
-                                    "단위": ["개"] * len(names)})
+    # Explicit dtypes: an empty list would otherwise become float64 and break the text columns.
+    state["ing_df"] = pd.DataFrame({
+        "식재료": pd.Series(names, dtype="object"),
+        "수량": pd.Series([1.0] * len(names), dtype="float64"),
+        "단위": pd.Series(["개"] * len(names), dtype="object")})
     state["editor_n"] = state.get("editor_n", 0) + 1
     for k in ("gen", "gen_error"):
         state.pop(k, None)
@@ -53,7 +56,7 @@ if upload is not None:
     if upload.size > vision.MAX_UPLOAD_BYTES:
         st.error("파일이 5MB를 넘습니다. 더 작은 사진을 올려 주세요.")
         st.stop()
-    st.image(upload, caption=upload.name, use_container_width=True)
+    st.image(upload, caption=upload.name, width="stretch")
     if st.button("식재료 인식하기", type="primary"):
         raw = upload.getvalue()
         with st.spinner("분석 중입니다. 무료 모델은 최대 1~2분 걸릴 수 있어요..."):
@@ -78,7 +81,7 @@ if state.get("rec_error"):
         start_list([], "수동 입력", [])
         st.rerun()
 
-result = state.get("result")
+result = state.get("result") if "ing_df" in state else None  # never render half a state
 confirmed = []
 if result:
     if state.get("resize_info"):
@@ -94,7 +97,7 @@ if result:
         state["editor_n"] += 1
         st.rerun()
     edited = st.data_editor(
-        state["ing_df"], num_rows="dynamic", use_container_width=True,
+        state["ing_df"], num_rows="dynamic", width="stretch",
         key=f"editor_{state['editor_n']}",
         column_config={
             "식재료": st.column_config.TextColumn("식재료", max_chars=recipe.MAX_TEXT_LEN),

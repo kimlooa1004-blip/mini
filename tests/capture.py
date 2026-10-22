@@ -73,6 +73,8 @@ def main():
             def shot(name, full=True):
                 n[0] += 1
                 page.wait_for_timeout(600)
+                boxes = page.locator('[data-testid="stException"]').count()
+                assert boxes == 0, f"Streamlit exception box on screen before shot {name!r}"
                 page.screenshot(path=str(OUT / f"{n[0]:02d}_{name}.png"), full_page=full)
 
             def go(text):
