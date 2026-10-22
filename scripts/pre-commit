@@ -1,0 +1,8 @@
+#!/bin/sh
+# Blocks commits that include .env files or OpenRouter-style keys (sk-or-...).
+if git diff --cached --name-only | grep -E '(^|/)\.env($|\.)' | grep -v '\.env\.example$' >/dev/null; then
+  echo "ERROR: .env file staged. Unstage it: git reset HEAD <file>" >&2; exit 1
+fi
+if git diff --cached -U0 | grep -E '^\+.*sk-or-[A-Za-z0-9_-]{16,}' >/dev/null; then
+  echo "ERROR: possible OpenRouter API key in staged changes." >&2; exit 1
+fi
